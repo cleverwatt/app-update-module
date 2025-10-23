@@ -286,6 +286,11 @@ case "$STATE" in
         if test $rc -ne 0; then
             exit $rc
         fi
+
+        # Stop and remove old containers matching the pattern (keeping current version)
+        docker ps --filter "name=${CONTAINER_PREFIX:-app-stack-v}" --format "{{.Names}}" | grep -v "$NEW_VERSION" | xargs -r docker stop
+        docker ps -a --filter "name=${CONTAINER_PREFIX:-app-stack-v}" --format "{{.Names}}" | grep -v "$NEW_VERSION" | xargs -r docker rm
+
         handle_artifact "$FILES"/files
         ;;
 
