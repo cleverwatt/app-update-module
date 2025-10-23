@@ -143,7 +143,7 @@ handle_artifact() {
     local image_current
     local image_new
     local deep_delta
-    local rollback_id="last"
+    local rollback_id="previous"
     local rc=0
 
     if test ! -d "$temp_dir"; then
@@ -194,11 +194,11 @@ handle_artifact() {
         fi
     done
     if test -d "${PERSISTENT_STORE}/${application_name}"; then
-        echo "copying existing composition to -previous"
-        rm -Rf "${PERSISTENT_STORE}/${application_name}-previous"
-        mv -v "${PERSISTENT_STORE}/${application_name}" "${PERSISTENT_STORE}/${application_name}-previous"
+        echo "copying existing composition to -${rollback_id}"
+        rm -Rf "${PERSISTENT_STORE}/${application_name}-${rollback_id}"
+        mv -v "${PERSISTENT_STORE}/${application_name}" "${PERSISTENT_STORE}/${application_name}-${rollback_id}"
     else
-        echo "no previous composition found"
+        echo "no ${rollback_id} composition found"
     fi
     mkdir -pv "${PERSISTENT_STORE}/${application_name}"/images
     rm -vf "${PERSISTENT_STORE}/${application_name}"/images/*
@@ -219,11 +219,11 @@ handle_artifact() {
     done
     # we should check if the app is healthy and alive, then decide what to do
     # at the moment we assume it is alive and ok
-    if test -d "${PERSISTENT_STORE}/${application_name}-previous"; then
-        echo "stopping ${PERSISTENT_STORE}/${application_name}-previous/manifests"
-        $app_sub_module STOP "${application_name}" "${PERSISTENT_STORE}/${application_name}-previous/manifests"
+    if test -d "${PERSISTENT_STORE}/${application_name}-${rollback_id}"; then
+        echo "stopping ${PERSISTENT_STORE}/${application_name}-${rollback_id}/manifests"
+        $app_sub_module STOP "${application_name}" "${PERSISTENT_STORE}/${application_name}-${rollback_id}/manifests"
     else
-        echo "-previous composition not present; nothing to stop."
+        echo "-${rollback_id} composition not present; nothing to stop."
     fi
     mv -v "$temp_dir/manifests" "${PERSISTENT_STORE}/${application_name}/"
     echo "rolling out ${PERSISTENT_STORE}/${application_name}/manifests"
@@ -234,12 +234,12 @@ handle_artifact() {
         if test -d "${PERSISTENT_STORE}/${application_name}-${rollback_id}"; then
             echo "cleaning up -${rollback_id}"
             clean_up "${PERSISTENT_STORE}/${application_name}-${rollback_id}" # clean up call automatically removes the images in by reference taken from clen-up subdirectory, it relies on the fact that we save them there
-            echo "cleaning up -previous"
-            clean_up "${PERSISTENT_STORE}/${application_name}-previous" # clean up the composition that was running just now
+            echo "cleaning up -${rollback_id}"
+            clean_up "${PERSISTENT_STORE}/${application_name}-${rollback_id}" # clean up the composition that was running just now
         else
             echo "successful rollout: nothing to clean"
         fi
-        rm -Rfv "${PERSISTENT_STORE}/${application_name}-previous"
+        rm -Rfv "${PERSISTENT_STORE}/${application_name}-${rollback_id}"
         # save_rollback "${PERSISTENT_STORE}/${application_name}-${rollback_id}" # saves the current images ids and manifests as new rollback state. this can be just cp -a "${PERSISTENT_STORE}/${application_name} "${PERSISTENT_STORE}/${application_name}-${rollback_id}"
         echo "saving data for rollback"
         rm -Rfv "${PERSISTENT_STORE}/${application_name}-${rollback_id}"
@@ -255,12 +255,12 @@ handle_artifact() {
             rc=80
         else
             echo "unsuccessful rollback trying to rollout the composition we saw when we started"
-            $app_sub_module ROLLOUT "${application_name}" "${PERSISTENT_STORE}/${application_name}-previous/manifests"
+            $app_sub_module ROLLOUT "${application_name}" "${PERSISTENT_STORE}/${application_name}-${rollback_id}/manifests"
             if test $? -eq 0; then
-                echo "successfully rolled out ${PERSISTENT_STORE}/${application_name}-previous"
+                echo "successfully rolled out ${PERSISTENT_STORE}/${application_name}-${rollback_id}"
                 rc=82
             else
-                echo "rollout of ${PERSISTENT_STORE}/${application_name}-previous was unsuccessful; deployment failed; rollout attempts failed."
+                echo "rollout of ${PERSISTENT_STORE}/${application_name}-${rollback_id} was unsuccessful; deployment failed; rollout attempts failed."
                 rc=84
             fi
         fi
@@ -286,11 +286,6 @@ case "$STATE" in
         if test $rc -ne 0; then
             exit $rc
         fi
-
-        # Stop and remove old containers matching the pattern (keeping current version)
-        docker ps --filter "name=${CONTAINER_PREFIX:-app-stack-v}" --format "{{.Names}}" | grep -v "$NEW_VERSION" | xargs -r docker stop
-        docker ps -a --filter "name=${CONTAINER_PREFIX:-app-stack-v}" --format "{{.Names}}" | grep -v "$NEW_VERSION" | xargs -r docker rm
-
         handle_artifact "$FILES"/files
         ;;
 
