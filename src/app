@@ -280,6 +280,12 @@ case "$STATE" in
         ;;
 
     ArtifactInstall)
+        # Remove ALL old containers matching wattworks-stack-* to avoid port/image conflicts
+        echo "Force removing all wattworks-stack containers"
+        docker ps -a --filter "name=wattworks-stack" -q | xargs --no-run-if-empty docker rm -f
+        docker network prune -f
+        docker volume prune -f
+        
         parse_metadata "$FILES"/header/meta-data "$FILES"/header/header-info
         assert_requirements
         rc=$?
