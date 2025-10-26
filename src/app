@@ -245,6 +245,10 @@ handle_artifact() {
         rm -Rfv "${PERSISTENT_STORE}/${application_name}-${rollback_id}"
         cp -va "${PERSISTENT_STORE}/${application_name}" "${PERSISTENT_STORE}/${application_name}-${rollback_id}"
         echo "successfully saved rollback data"
+        
+        # Update symlink to point to current deployment
+        echo "updating wattworks-stack-current symlink"
+        ln -sfn "${PERSISTENT_STORE}/${application_name}" "${PERSISTENT_STORE}/wattworks-stack-current"
     else
         echo "unsuccessful rollout"
         rc=8
