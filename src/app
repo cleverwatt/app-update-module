@@ -30,6 +30,7 @@ trap cleanup 1 2 3 6 15
 CONFIG_FILE="/etc/mender/mender-app.conf"
 PERSISTENT_STORE="/data/mender-app"
 APP_MODULE_DIR="/usr/share/mender/app-modules/v1"
+CONTAINER_NAME_PREFIX="wattworks" # set by COMPOSE_PROJECT_NAME
 
 version=""
 orchestrator=""
@@ -284,10 +285,9 @@ case "$STATE" in
         ;;
 
     ArtifactInstall)
-        # Remove ALL old containers matching wattworks-stack-* or manifests-* to avoid port/image conflicts
-        echo "Force removing all wattworks-stack and manifests containers"
-        docker ps -a --filter "name=wattworks-stack" -q | xargs --no-run-if-empty docker rm -f
-        docker ps -a --filter "name=manifests" -q | xargs --no-run-if-empty docker rm -f
+        # Remove ALL old containers matching ${CONTAINER_NAME_PREFIX}-* to avoid port/image conflicts
+        echo "Force removing all ${CONTAINER_NAME_PREFIX} containers"
+        docker ps -a --filter "name=${CONTAINER_NAME_PREFIX}" -q | xargs --no-run-if-empty docker rm -f
         docker network prune -f
         docker volume prune -f
         
