@@ -227,6 +227,17 @@ handle_artifact() {
         echo "-${rollback_id} composition not present; nothing to stop."
     fi
     mv -v "$temp_dir/manifests" "${PERSISTENT_STORE}/${application_name}/"
+    
+    # Save deployment metadata for tracking
+    cat > "${PERSISTENT_STORE}/${application_name}/.deployment-info" <<EOF
+application_name=${application_name}
+version=${version}
+artifact_name=${artifact_name}
+platform=${platform}
+orchestrator=${orchestrator}
+deployed_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+EOF
+    
     echo "rolling out ${PERSISTENT_STORE}/${application_name}/manifests"
     set +e
     $app_sub_module ROLLOUT "${application_name}" "${PERSISTENT_STORE}/${application_name}/manifests" 2>&1
@@ -248,8 +259,8 @@ handle_artifact() {
         echo "successfully saved rollback data"
         
         # Update symlink to point to current deployment
-        echo "updating ${application_name}-current symlink"
-        ln -sfn "${PERSISTENT_STORE}/${application_name}" "${PERSISTENT_STORE}/${application_name}-current"
+        #echo "updating ${application_name}-current symlink"
+        #ln -sfn "${PERSISTENT_STORE}/${application_name}" "${PERSISTENT_STORE}/${application_name}-current"
     else
         echo "unsuccessful rollout"
         rc=8
