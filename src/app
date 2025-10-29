@@ -30,7 +30,7 @@ trap cleanup 1 2 3 6 15
 CONFIG_FILE="/etc/mender/mender-app.conf"
 PERSISTENT_STORE="/data/mender-app"
 APP_MODULE_DIR="/usr/share/mender/app-modules/v1"
-CONTAINER_NAME_PREFIX="wattworks" # set by COMPOSE_PROJECT_NAME
+#CONTAINER_NAME_PREFIX="wattworks" # set by COMPOSE_PROJECT_NAME
 
 version=""
 orchestrator=""
@@ -248,8 +248,8 @@ handle_artifact() {
         echo "successfully saved rollback data"
         
         # Update symlink to point to current deployment
-        echo "updating wattworks-stack-current symlink"
-        ln -sfn "${PERSISTENT_STORE}/${application_name}" "${PERSISTENT_STORE}/wattworks-stack-current"
+        echo "updating ${application_name}-current symlink"
+        ln -sfn "${PERSISTENT_STORE}/${application_name}" "${PERSISTENT_STORE}/${application_name}-current"
     else
         echo "unsuccessful rollout"
         rc=8
@@ -286,10 +286,10 @@ case "$STATE" in
 
     ArtifactInstall)
         # Remove ALL old containers matching ${CONTAINER_NAME_PREFIX}-* to avoid port/image conflicts
-        echo "Force removing all ${CONTAINER_NAME_PREFIX} containers"
-        docker ps -a --filter "name=${CONTAINER_NAME_PREFIX}" -q | xargs --no-run-if-empty docker rm -f
-        docker network prune -f
-        docker volume prune -f
+        #echo "Force removing all ${CONTAINER_NAME_PREFIX} containers"
+        #docker ps -a --filter "name=${CONTAINER_NAME_PREFIX}" -q | xargs --no-run-if-empty docker rm -f
+        #docker network prune -f
+        #docker volume prune -f
         
         parse_metadata "$FILES"/header/meta-data "$FILES"/header/header-info
         assert_requirements
