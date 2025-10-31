@@ -134,6 +134,83 @@ clean_up() {
     fi
 }
 
+merge_mender_configure() {
+    local manifests_dir="$1"
+    local config_json="/data/mender-configure/device-config.json"
+    local env_file="${manifests_dir}/.env"
+
+    if test ! -f "$config_json"; then
+        echo "INFO: mender-configure config not found at $config_json, skipping merge"
+        return 0
+    fi
+
+    if test ! -r "$config_json"; then
+        echo "WARNING: mender-configure config not readable at $config_json, skipping merge"
+        return 0
+    fi
+
+    echo "merging mender-configure settings into docker-compose deployment"
+    
+    local runtime_env="${manifests_dir}/.env.runtime"
+    local artifact_env="${manifests_dir}/.env"
+    local merged_env="${manifests_dir}/.env.merged"
+    
+    # Create .env.runtime from mender-configure values
+    {
+        # Parse common configuration values
+        AZURE_CONN_STR=$(jq -r '.azureConnectionString // ""' "$config_json" 2>/dev/null)
+        if test -n "$AZURE_CONN_STR"; then
+            echo "AZURE_CONN_STR=${AZURE_CONN_STR}"
+        fi
+        
+        # Extract all other top-level keys as environment variables
+        jq -r 'to_entries[] | select(.key != "azureConnectionString") | select(.value | type == "string" or type == "number") | "\(.key | ascii_upcase)=\(.value)"' "$config_json" 2>/dev/null || true
+        
+    } > "$runtime_env"
+    
+    if test ! -s "$runtime_env"; then
+        echo "WARNING: no configuration variables extracted from mender-configure"
+        rm -f "$runtime_env"
+        return 0
+    fi
+    
+    # Merge artifact .env (if exists) with runtime .env
+    # Runtime values override artifact values (runtime takes precedence)
+    {
+        # First, include artifact .env if it exists
+        if test -f "$artifact_env"; then
+            # Extract variable names from runtime to remove duplicates from artifact
+            local runtime_vars=$(grep -E '^[A-Z_]+=' "$runtime_env" | sed 's/=.*//' || true)
+            
+            if test -n "$runtime_vars"; then
+                # Filter artifact .env to exclude variables that exist in runtime
+                local temp_artifact=$(mktemp)
+                cat "$artifact_env" > "$temp_artifact"
+                for var in $runtime_vars; do
+                    grep -v "^${var}=" "$temp_artifact" > "${temp_artifact}.new" 2>/dev/null && mv "${temp_artifact}.new" "$temp_artifact" || true
+                done
+                cat "$temp_artifact"
+                rm -f "$temp_artifact"
+            else
+                cat "$artifact_env"
+            fi
+        fi
+        
+        # Then append runtime .env (these values take precedence)
+        cat "$runtime_env"
+        
+    } > "$merged_env"
+    
+    # Replace .env with merged version
+    mv "$merged_env" "$artifact_env"
+    
+    local runtime_count=$(wc -l < "$runtime_env" 2>/dev/null || echo "0")
+    echo "merged ${runtime_count} runtime configuration variables from mender-configure into .env"
+    echo "runtime config saved to .env.runtime for reference"
+    
+    return 0
+}
+
 handle_artifact() {
     local image_dir
     local image
@@ -227,6 +304,9 @@ handle_artifact() {
         echo "-${rollback_id} composition not present; nothing to stop."
     fi
     mv -v "$temp_dir/manifests" "${PERSISTENT_STORE}/${application_name}/"
+    
+    # Merge mender-configure settings into docker-compose deployment
+    merge_mender_configure "${PERSISTENT_STORE}/${application_name}/manifests"
     
     # Save deployment metadata for tracking
     cat > "${PERSISTENT_STORE}/${application_name}/.deployment-info" <<EOF
