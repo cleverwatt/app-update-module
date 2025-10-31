@@ -157,10 +157,11 @@ merge_mender_configure() {
     
     # Create .env.runtime from mender-configure values
     {
-        # Parse common configuration values
+        # Parse Azure connection string and map to expected variable names
         AZURE_CONN_STR=$(jq -r '.azureConnectionString // ""' "$config_json" 2>/dev/null)
         if test -n "$AZURE_CONN_STR"; then
-            echo "AZURE_CONN_STR=${AZURE_CONN_STR}"
+            echo "AZURE_CONNECTION_STRING=${AZURE_CONN_STR}"
+            echo "AZURE_SECURITY_TYPE=connectionString"
         fi
         
         # Extract all other top-level keys as environment variables
