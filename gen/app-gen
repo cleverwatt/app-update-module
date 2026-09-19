@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Copyright 2023 Northern.tech AS
 #
+# Modified by cleverwatt GmbH in 2025. This file differs from the upstream
+# mendersoftware/app-update-module original.
+#
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
 #    You may obtain a copy of the License at
